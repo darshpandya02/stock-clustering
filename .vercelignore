@@ -1,0 +1,8 @@
+src
+tests
+scripts
+data
+.github
+pyproject.toml
+uv.lock
+.python-version

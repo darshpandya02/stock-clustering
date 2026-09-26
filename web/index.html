@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Stock Clustering: K-means++ and DBSCAN on S&amp;P 500 features</title>
+  <meta name="description" content="S&amp;P 500 stocks clustered with K-means++ and DBSCAN on returns, volatility, moving-average ratios, beta and drawdown, projected with PCA. Refreshed daily from Yahoo Finance.">
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <div class="viz-root">
+    <header class="page-head">
+      <div>
+        <h1>Stock Clustering</h1>
+        <p class="lede">S&amp;P 500 stocks grouped by how their prices have behaved: returns over five windows, volatility,
+          moving-average ratios, beta vs SPY and one-year max drawdown. K-means++ and DBSCAN on the standardized
+          features, projected to two dimensions with PCA.</p>
+      </div>
+      <p class="freshness" id="freshness">Loading snapshot...</p>
+    </header>
+
+    <section class="controls" aria-label="Clustering controls">
+      <div class="seg" role="radiogroup" aria-label="Model">
+        <button type="button" role="radio" data-mode="kmeans" aria-checked="true" id="mode-kmeans">K-means++</button>
+        <button type="button" role="radio" data-mode="dbscan" aria-checked="false" id="mode-dbscan">DBSCAN</button>
+        <button type="button" role="radio" data-mode="custom" aria-checked="false" id="mode-custom">Custom k</button>
+      </div>
+      <div class="recluster" id="recluster">
+        <label>k <input type="number" id="k-input" min="2" max="8" value="6"></label>
+        <label>seed <input type="number" id="seed-input" min="0" max="4294967295" value="42"></label>
+        <button type="button" id="recluster-btn">Re-cluster</button>
+        <span class="muted small" id="recluster-status"></span>
+      </div>
+      <div class="search">
+        <label for="search-input" class="sr-only">Find a ticker</label>
+        <input id="search-input" list="ticker-list" placeholder="Find a ticker or company (e.g. NVDA)" autocomplete="off">
+        <datalist id="ticker-list"></datalist>
+      </div>
+    </section>
+
+    <section class="stats" id="stats" aria-live="polite"></section>
+
+    <main class="grid">
+      <section class="card chart-card">
+        <div class="card-head">
+          <h2 id="chart-title">PCA projection</h2>
+          <div class="legend" id="legend"></div>
+        </div>
+        <div class="chart-wrap" id="chart-wrap">
+          <svg id="scatter" role="img" aria-label="Scatter plot of stocks on the first two principal components, coloured by cluster"></svg>
+          <div class="tooltip" id="tooltip" hidden></div>
+        </div>
+        <p class="muted small" id="pca-note"></p>
+      </section>
+
+      <aside class="card detail" id="detail">
+        <h2>Ticker detail</h2>
+        <p class="muted">Search for a ticker, or click a point on the chart, to see its cluster, features and nearest neighbours.</p>
+      </aside>
+    </main>
+
+    <section class="card">
+      <div class="card-head"><h2>Clusters</h2><p class="muted small" id="cluster-note"></p></div>
+      <div class="table-scroll"><table id="cluster-table"></table></div>
+    </section>
+
+    <section class="grid two">
+      <section class="card">
+        <h2>Choosing k</h2>
+        <p class="muted small">Silhouette score of K-means++ for each k. Higher means tighter, better separated clusters.</p>
+        <div class="mini-wrap"><svg id="sil-chart" role="img" aria-label="Silhouette score by k"></svg><div class="tooltip" hidden></div></div>
+        <div class="table-scroll"><table id="sil-table" class="compact"></table></div>
+      </section>
+      <section class="card">
+        <h2>Choosing DBSCAN eps</h2>
+        <p class="muted small" id="kdist-note"></p>
+        <div class="mini-wrap"><svg id="kdist-chart" role="img" aria-label="Sorted k-distance curve"></svg><div class="tooltip" hidden></div></div>
+      </section>
+    </section>
+
+    <section class="card" id="prediction">
+      <h2>Movement prediction (walk-forward backtest)</h2>
+      <div id="prediction-body"></div>
+    </section>
+
+    <footer class="card foot">
+      <p><strong>Not investment advice.</strong> This is a study of how stocks group by recent price behaviour.
+        Clusters describe the past year; they do not forecast returns, and the backtest above shows the
+        direction classifier does not beat a naive baseline.</p>
+      <p class="muted small">Data: Yahoo Finance via yfinance, S&amp;P 500 constituent list and GICS sectors from the
+        datasets/s-and-p-500-companies repository. Source code and method:
+        <a href="https://github.com/darshpandya02/stock-clustering">github.com/darshpandya02/stock-clustering</a>.</p>
+    </footer>
+  </div>
+</body>
+</html>
