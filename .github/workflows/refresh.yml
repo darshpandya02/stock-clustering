@@ -1,0 +1,52 @@
+name: Refresh snapshot
+
+# Weekdays at 22:30 UTC, after the US close (16:00 New York) in both EDT and EST.
+on:
+  schedule:
+    - cron: "30 22 * * 1-5"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: uv sync --locked
+      - name: Download prices, recompute features, clusters and backtest
+        run: uv run python -m stockclust.pipeline --no-cache
+      - name: Test against the new snapshot
+        run: uv run pytest -q
+      - name: Commit snapshot if it changed
+        run: |
+          # Ignore the build timestamp: on market holidays nothing else changes.
+          CHANGED=$(python3 - <<'PY'
+          import json, subprocess
+          new = json.load(open("web/data/snapshot.json"))
+          old = json.loads(subprocess.check_output(["git", "show", "HEAD:web/data/snapshot.json"]))
+          new.pop("refreshed_at"); old.pop("refreshed_at")
+          new.get("prediction", {}).pop("seconds", None); old.get("prediction", {}).pop("seconds", None)
+          print("yes" if new != old else "no")
+          PY
+          )
+          if [ "$CHANGED" = "no" ]; then
+            echo "snapshot unchanged"
+            exit 0
+          fi
+          AS_OF=$(python3 -c "import json; print(json.load(open('web/data/snapshot.json'))['as_of'])")
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add web/data/snapshot.json
+          git commit -m "Refresh snapshot with prices through ${AS_OF}"
+          git push
